@@ -2,6 +2,7 @@ import { Router } from "express";
 import { PrismaClient } from "../generated/prisma/index";
 import { interestRates } from "../utils/interestRates";
 import { deposite, withdraw } from "../utils/bankUtils";
+import { checkTakeCredit } from "../utils/creditUtils";
 
 
 const prisma = new PrismaClient()
@@ -73,34 +74,60 @@ router.post('/withdraw/:id', async (req, res) =>{
 })
 
 
-router.post('/takecredit/:id', async (req, res) =>{
+
+
+router.post('/checkhistory/:id', async (req, res) =>{
     try {
 
-        const {amount, creditType} = req.body
-        const user = await prisma.user.findUnique({where:{
-            id: Number(req.params.id)
-        }})
+        const user = await prisma.user.findUnique({
+            where: {
+                id: Number(req.params.id)
+            }
+        })
 
-        let newBankaccount
-        if (user && amount && creditType) {
-            newBankaccount = await prisma.bankAccount.create({
-                data: {
-                    account: String(Date.now()),
-                    balance: amount,
-                    type: 'credit',
-                    duty:  amount + (amount * interestRates.consumer / 100),
-                    interestRate: interestRates.consumer,
-                    loanTerm: 36,
-                    userId: user.id
-                }
-            })
-        }
+        const userHistory = await prisma.history.findMany({
+            where: {
+                userId: user?.id
+            }
+        })
 
-        return res.status(200).json({ user, newBankaccount })
+        const sum = checkTakeCredit(userHistory)
+
+        return res.status(200).json(sum)
     } catch (error) {
         console.log(error)
     }
 })
+
+
+// router.post('/takecredit/:id', async (req, res) =>{
+//     try {
+
+//         const {amount, creditType} = req.body
+//         const user = await prisma.user.findUnique({where:{
+//             id: Number(req.params.id)
+//         }})
+
+//         let newBankaccount
+//         if (user && amount && creditType) {
+//             newBankaccount = await prisma.bankAccount.create({
+//                 data: {
+//                     account: String(Date.now()),
+//                     balance: amount,
+//                     type: 'credit',
+//                     duty:  amount + (amount * interestRates.consumer / 100),
+//                     interestRate: interestRates.consumer,
+//                     loanTerm: 36,
+//                     userId: user.id
+//                 }
+//             })
+//         }
+
+//         return res.status(200).json({ user, newBankaccount })
+//     } catch (error) {
+//         console.log(error)
+//     }
+// })
 
 
 
