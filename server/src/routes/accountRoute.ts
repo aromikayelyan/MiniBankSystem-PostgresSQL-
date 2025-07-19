@@ -9,41 +9,56 @@ const router = Router()
 
 
 
-router.get('/', async (req, res) =>{
+router.get('/:id', async (req, res) => {
     try {
-        const user = await prisma.user.findMany()
+        const id  = Number(req.params.id)
+        let user
 
-        return res.status(200).json(user)
+        if (id) {
+            user = await prisma.user.findUnique({
+                where: {
+                    id
+                }
+            })
+        }
+        if (user) {
+            return res.status(200).json(user)
+        }
+
+        return res.status(200).json({ message: 'not exist' })
     } catch (error) {
         console.log(error)
     }
 })
 
 
-router.post('/', async (req, res) =>{
+router.post('/create', async (req, res) => {
     try {
+        const {name, telNum, pin } = req.body
+
         const newUser = await prisma.user.create({
-            data:{
-                name:'dd',
-                telNum: "3",
-                pin: '3333'
+            data: {
+                name,
+                balance: 0,
+                telNum,
+                pin
             }
         })
 
-        return res.status(200).json(newUser)
+        const newBankaccount = await prisma.bankAccount.create({
+            data: {
+                account: String(Date.now()),
+                balance: 0,
+                type: 'debit',
+                userId: newUser.id
+            }
+        })
+
+        return res.status(200).json({ newUser, newBankaccount })
     } catch (error) {
         console.log(error)
     }
 })
-
-
-
-// router.get('/:num', )
-// router.post('/create', )
-// router.put('/update', )
-// router.delete('/delete/:num', )
-
-
 
 
 

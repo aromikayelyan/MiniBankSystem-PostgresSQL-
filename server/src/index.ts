@@ -1,6 +1,6 @@
 import express from 'express';
 import account from './routes/accountRoute';
-// import bank from './routes/bankRoute';
+import bank from './routes/bankRoute';
 
 
 
@@ -11,7 +11,7 @@ app.use(express.json())
 
 
 app.use('/account', account)
-// app.use('/bank', bank)
+app.use('/bank', bank)
 
 
 function start(): void {
