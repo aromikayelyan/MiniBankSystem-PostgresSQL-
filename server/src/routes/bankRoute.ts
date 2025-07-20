@@ -163,7 +163,6 @@ router.post('/transfer/:id', async (req, res) => {
                  return res.status(200).json({ message: `wit number - ${toTelNum} User not found` })
             }
 
-
         } else {
             return res.status(200).json({ message: "wrong pin" })
         }

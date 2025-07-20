@@ -2,7 +2,7 @@ import express from "express";
 
 import { PrismaClient } from "../generated/prisma/index";
 import { interestRates } from "../utils/interestRates";
-import { deposite, withdraw } from "../utils/bankUtils";
+import { deposit, withdraw } from "../utils/bankUtils";
 import { checkTakeCredit } from "../utils/creditUtils";
 
 
