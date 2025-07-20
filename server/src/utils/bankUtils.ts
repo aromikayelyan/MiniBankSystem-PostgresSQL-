@@ -5,7 +5,7 @@ const prisma = new PrismaClient()
 
 
 
-export async function deposite(amount: number, telNum: string) {
+export async function deposit(amount: number, telNum: string) {
     try {
         const user = await prisma.user.findUnique({
             where: {
@@ -82,7 +82,7 @@ export async function withdraw(amount: number, telNum: string) {
         if (bankAccount && user) {
             const newbalance = user.balance - amount
 
-            if (newbalance > 0) {
+            if (newbalance >= 0) {
                 await prisma.user.update({
                     where: { id: user.id },
                     data: { balance: newbalance }

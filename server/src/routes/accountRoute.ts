@@ -27,7 +27,7 @@ router.get('/:id', async (req, res) => {
 
         return res.status(200).json({ message: 'not exist' })
     } catch (error) {
-        console.log(error)
+        return res.status(500).json({ error: 'Internal server error' });
     }
 })
 
@@ -56,7 +56,7 @@ router.post('/create', async (req, res) => {
 
         return res.status(200).json({ newUser, newBankaccount })
     } catch (error) {
-        console.log(error)
+        return res.status(500).json({ error: 'Internal server error' });
     }
 })
 
