@@ -2,7 +2,7 @@ import { Router } from "express";
 import { PrismaClient } from "../generated/prisma/index";
 import { interestRates } from "../utils/interestRates";
 import { deposit, withdraw } from "../utils/bankUtils";
-import { checkTakeCredit, takeCredit } from "../utils/creditUtils";
+import { checkTakeCredit } from "../utils/creditUtils";
 
 
 const prisma = new PrismaClient()
@@ -54,13 +54,9 @@ router.post('/deposit/:id', async (req, res) => {
             }
         })
 
-        let response
+        if (!user) return res.status(404).json({ message: "User not found" })
 
-        if (user) {
-            response = await deposit(amount, user.telNum)
-        } else {
-            return res.status(200).json({ message: "User not found" })
-        }
+        let response = await deposit(amount, user.telNum)
 
         return res.status(200).json({ message: "Deposit successful", balance: response })
     } catch (error) {
@@ -84,6 +80,7 @@ router.post('/withdraw/:id', async (req, res) => {
             }
         })
 
+
         let response
 
         if (user && user.pin === pin) {
@@ -101,8 +98,6 @@ router.post('/withdraw/:id', async (req, res) => {
 
 router.post('/checkhistory/:id', async (req, res) => {
     try {
-        let sum
-
         const user = await prisma.user.findUnique({
             where: {
                 id: Number(req.params.id)
@@ -117,13 +112,14 @@ router.post('/checkhistory/:id', async (req, res) => {
 
 
         if (userHistory) {
-            sum = checkTakeCredit(userHistory)
+            let sum = checkTakeCredit(userHistory)
+            if (sum === 0) {
+                return res.status(200).json({ message: 'You cant take credit!' })
+            }
+            return res.status(200).json({ message: `The credit amount you are eligible for is $${sum}.` })
         } else {
             return res.status(200).json({ message: 'You cant take credit!' })
         }
-
-
-        return res.status(200).json(sum)
     } catch (error) {
         return res.status(500).json({ error: 'Internal server error' });
     }
@@ -177,15 +173,15 @@ router.post('/transfer/:id', async (req, res) => {
 router.post('/takecredit/:id', async (req, res) => {
     try {
 
-        const { amount, pin, TelNum } = req.body
+        const { amount, pin, TelNum, } = req.body
 
         if (typeof amount !== 'number' || amount <= 0) {
             return res.status(400).json({ message: 'Invalid amount' });
         }
 
-        if (typeof TelNum !== 'string' || TelNum.length <= 9) {
-            return res.status(400).json({ message: 'Invalid telephone number' });
-        }
+        // if (typeof TelNum !== 'string' || TelNum.length <= 9) {
+        //     return res.status(400).json({ message: 'Invalid telephone number' });
+        // }
 
 
         const user = await prisma.user.findUnique({
@@ -193,29 +189,42 @@ router.post('/takecredit/:id', async (req, res) => {
                 id: Number(req.params.id)
             }
         })
-        let message = ``
-        let sum = 0
 
         if (user) {
             const userHistory = await prisma.history.findMany({
                 where: {
-                    userId: user?.id
+                    userId: user.id
                 }
             })
-            // if(userHistory){
-            //     sum = takeCredit()
-            // }
-            
+
+            const creditSum = checkTakeCredit(userHistory)
+
+            if(amount > creditSum){
+                return res.status(200).json({ message: `The credit amount you are eligible for is $${creditSum}.`})
+            }
+
+            if (creditSum > 0 && creditSum >= amount && user.pin === pin) {
+                const newBankaccount = await prisma.bankAccount.create({
+                    data: {
+                        account: String(Date.now()),
+                        balance: amount ,
+                        type: 'credit',
+                        duty: amount + (amount * interestRates.consumer/100),
+                        interestRate: interestRates.consumer,
+                        loanTerm: 36,
+                        userId: user.id,
+                    }
+                })
+            }
+
+            return res.status(200).json({ error: 'You are successfuly take credit!' });
+        
         }
 
-        if (sum > 0) {
-            message += `The credit amount you are eligible for is $${sum}.`
-        } else {
-            message += 'you cant take credit'
-        }
 
 
 
+        return res.status(400).json({ error: 'Try again!' });
 
     } catch (error) {
         return res.status(500).json({ error: 'Internal server error' });

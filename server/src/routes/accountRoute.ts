@@ -8,10 +8,19 @@ const router = Router()
 
 
 
+router.get('/getall', async (req, res) => {
+    try {
+        const users = await prisma.user.findMany()
+        return res.status(200).json(users)
+    } catch (error) {
+        return res.status(500).json({ error: 'Internal server error' });
+    }
+})
+
 
 router.get('/:id', async (req, res) => {
     try {
-        const id  = Number(req.params.id)
+        const id = Number(req.params.id)
         let user
 
         if (id) {
@@ -34,7 +43,7 @@ router.get('/:id', async (req, res) => {
 
 router.post('/create', async (req, res) => {
     try {
-        const {name, telNum, pin } = req.body
+        const { name, telNum, pin } = req.body
 
         const newUser = await prisma.user.create({
             data: {
@@ -59,7 +68,6 @@ router.post('/create', async (req, res) => {
         return res.status(500).json({ error: 'Internal server error' });
     }
 })
-
 
 
 
