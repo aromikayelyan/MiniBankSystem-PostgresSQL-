@@ -2,7 +2,7 @@ import { Router } from "express";
 import { PrismaClient } from "../generated/prisma/index";
 import { interestRates } from "../utils/interestRates";
 import { deposit, withdraw } from "../utils/bankUtils";
-import { checkTakeCredit } from "../utils/creditUtils";
+import { checkTakeCredit, takeCredit } from "../utils/creditUtils";
 
 
 const prisma = new PrismaClient()
@@ -38,7 +38,6 @@ router.get('/getall/:id', async (req, res) => {
         return res.status(500).json({ error: 'Internal server error' });
     }
 })
-
 
 
 router.post('/deposit/:id', async (req, res) => {
@@ -131,7 +130,6 @@ router.post('/checkhistory/:id', async (req, res) => {
 })
 
 
-
 router.post('/transfer/:id', async (req, res) => {
     try {
         const { amount, pin, toTelNum } = req.body
@@ -156,11 +154,11 @@ router.post('/transfer/:id', async (req, res) => {
             }
         })
 
-    
+
 
         if (fromUser && fromUser.pin === pin) {
-            if(!toUser){
-                 return res.status(200).json({ message: `wit number - ${toTelNum} User not found` })
+            if (!toUser) {
+                return res.status(200).json({ message: `wit number - ${toTelNum} User not found` })
             }
 
         } else {
@@ -169,7 +167,7 @@ router.post('/transfer/:id', async (req, res) => {
 
 
 
-        return res.status(200).json({ message: ``})
+        return res.status(200).json({ message: `` })
     } catch (error) {
         return res.status(500).json({ error: 'Internal server error' });
     }
@@ -178,6 +176,46 @@ router.post('/transfer/:id', async (req, res) => {
 
 router.post('/takecredit/:id', async (req, res) => {
     try {
+
+        const { amount, pin, TelNum } = req.body
+
+        if (typeof amount !== 'number' || amount <= 0) {
+            return res.status(400).json({ message: 'Invalid amount' });
+        }
+
+        if (typeof TelNum !== 'string' || TelNum.length <= 9) {
+            return res.status(400).json({ message: 'Invalid telephone number' });
+        }
+
+
+        const user = await prisma.user.findUnique({
+            where: {
+                id: Number(req.params.id)
+            }
+        })
+        let message = ``
+        let sum = 0
+
+        if (user) {
+            const userHistory = await prisma.history.findMany({
+                where: {
+                    userId: user?.id
+                }
+            })
+            // if(userHistory){
+            //     sum = takeCredit()
+            // }
+            
+        }
+
+        if (sum > 0) {
+            message += `The credit amount you are eligible for is $${sum}.`
+        } else {
+            message += 'you cant take credit'
+        }
+
+
+
 
     } catch (error) {
         return res.status(500).json({ error: 'Internal server error' });
