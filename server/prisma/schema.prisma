@@ -21,6 +21,7 @@ model User {
   balance      Float
   telNum       String        @unique
   pin          String
+  password     String
   bankAccounts BankAccount[]
   history      History[]
 

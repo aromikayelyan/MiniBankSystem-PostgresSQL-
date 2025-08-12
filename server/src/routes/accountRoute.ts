@@ -1,4 +1,6 @@
 import { Router } from "express";
+import bcrypt from 'bcrypt'
+import { generateAccessToken } from '../utils/utils'
 import { PrismaClient } from "../generated/prisma/index";
 
 
@@ -43,14 +45,19 @@ router.get('/:id', async (req, res) => {
 
 router.post('/create', async (req, res) => {
     try {
-        const { name, telNum, pin } = req.body
+        let { name, telNum, pin, password } = req.body
+
+        password = bcrypt.hashSync(password, 7)
+
+        console.log(password)
 
         const newUser = await prisma.user.create({
             data: {
                 name,
                 balance: 0,
                 telNum,
-                pin
+                pin,
+                password
             }
         })
 
@@ -68,6 +75,34 @@ router.post('/create', async (req, res) => {
         return res.status(500).json({ error: 'Internal server error' });
     }
 })
+
+
+
+router.post('/log', async (req, res) => {
+    try {
+        const { telNum, password } = req.body
+        const user = await prisma.user.findUnique({
+                where: {
+                    telNum
+                }
+            })
+        if (!user) {
+            return res.status(400).json({ message: "Пользователь не найден!" })
+        }
+        const validPassword = bcrypt.compareSync(password, user.password)
+        if (!validPassword) {
+            return res.status(400).json({ message: "Введен неправильный пароль!" })
+        }
+
+        const token = generateAccessToken(user.id)
+        return res.json({token})
+    } catch (error) {
+        console.log(error)
+        return res.status(400).json({ message: "Ошибка" })
+
+    }
+})
+
 
 
 

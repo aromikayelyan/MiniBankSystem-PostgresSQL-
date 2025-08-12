@@ -3,6 +3,9 @@ import { PrismaClient } from "../generated/prisma/index";
 import { interestRates } from "../utils/interestRates";
 import { deposit, withdraw } from "../utils/bankUtils";
 import { checkTakeCredit } from "../utils/creditUtils";
+import authCheck from "../middleware/authCheck";
+import express from 'express'
+import user from "../controllers/user";
 
 
 const prisma = new PrismaClient()
@@ -10,12 +13,12 @@ const prisma = new PrismaClient()
 const router = Router()
 
 
-
-router.get('/getall/:id', async (req, res) => {
+router.get('/getall', authCheck, async (req: express.Request, res: express.Response) => {
     try {
+
         const user = await prisma.user.findUnique({
             where: {
-                id: Number(req.params.id)
+                id: req.user.id
             }
         })
 
@@ -40,7 +43,7 @@ router.get('/getall/:id', async (req, res) => {
 })
 
 
-router.post('/deposit/:id', async (req, res) => {
+router.post('/deposit', authCheck, async (req, res) => {
     try {
         const { amount } = req.body
 
@@ -50,7 +53,7 @@ router.post('/deposit/:id', async (req, res) => {
 
         const user = await prisma.user.findUnique({
             where: {
-                id: Number(req.params.id)
+                id: req.user.id
             }
         })
 
@@ -66,7 +69,7 @@ router.post('/deposit/:id', async (req, res) => {
 })
 
 
-router.post('/withdraw/:id', async (req, res) => {
+router.post('/withdraw', authCheck, async (req, res) => {
     try {
         const { amount, pin } = req.body
 
@@ -76,7 +79,7 @@ router.post('/withdraw/:id', async (req, res) => {
 
         const user = await prisma.user.findUnique({
             where: {
-                id: Number(req.params.id)
+                id: req.user.id
             }
         })
 
@@ -96,11 +99,11 @@ router.post('/withdraw/:id', async (req, res) => {
 })
 
 
-router.post('/checkhistory/:id', async (req, res) => {
+router.post('/checkhistory', authCheck, async (req, res) => {
     try {
         const user = await prisma.user.findUnique({
             where: {
-                id: Number(req.params.id)
+                id: req.user.id
             }
         })
 
@@ -126,51 +129,85 @@ router.post('/checkhistory/:id', async (req, res) => {
 })
 
 
-router.post('/transfer/:id', async (req, res) => {
+router.post('/transfer', authCheck, async (req, res) => {
     try {
-        // const { amount, pin, toTelNum } = req.body
+        const { amount, pin, toTelNum } = req.body
 
-        // if (typeof amount !== 'number' || amount <= 0) {
-        //     return res.status(400).json({ message: 'Invalid amount' });
-        // }
+        if (typeof amount !== 'number' || amount <= 0) {
+            return res.status(400).json({ message: 'Invalid amount' });
+        }
 
-        // if (typeof toTelNum !== 'string' || toTelNum.length <= 9) {
-        //     return res.status(400).json({ message: 'Invalid telephone number' });
-        // }
+        if (typeof toTelNum !== 'string' || toTelNum.length <= 9) {
+            return res.status(400).json({ message: 'Invalid telephone number' });
+        }
 
-        // const fromUser = await prisma.user.findUnique({
-        //     where: {
-        //         id: Number(req.params.id)
-        //     }
-        // })
+        const fromUser = await prisma.user.findUnique({
+            where: {
+                id: req.user.id
+            }
+        })
 
-        // const toUser = await prisma.user.findUnique({
-        //     where: {
-        //         telNum: toTelNum
-        //     }
-        // })
+        const toUser = await prisma.user.findUnique({
+            where: {
+                telNum: toTelNum
+            }
+        })
 
-
-
-        // if (fromUser && fromUser.pin === pin) {
-        //     if (!toUser) {
-        //         return res.status(200).json({ message: `wit number - ${toTelNum} User not found` })
-        //     }
-
-        // } else {
-        //     return res.status(200).json({ message: "wrong pin" })
-        // }
+        const fromDebAcc = await prisma.bankAccount.findFirst({
+            where: {
+                userId: fromUser?.id
+            }
+        })
 
 
 
-        // return res.status(200).json({ message: `` })
+
+        if (fromUser && fromUser.pin === pin && fromDebAcc && fromDebAcc?.balance > amount) {
+            if (!toUser) {
+                return res.status(200).json({ message: `wit number - ${toTelNum} User not found` })
+            }
+
+            const toDebAcc = await prisma.bankAccount.findFirst({
+                where: {
+                    userId: toUser?.id
+                }
+            })
+
+            if (!toDebAcc) {
+                return res.status(200).json({ message: `wit number - ${toTelNum} User dont have a bank acoount` })
+            }
+
+            const updateFromAcc = await prisma.bankAccount.update({
+                where: {
+                    id: fromDebAcc.id
+                },
+                data: {
+                    balance: fromDebAcc.balance - amount
+                }
+            })
+
+
+            const updateToAcc = await prisma.bankAccount.update({
+                where: {
+                    id: toDebAcc.id
+                },
+                data: {
+                    balance: toDebAcc.balance + amount
+                }
+            })
+
+            return res.json({ message: 'Transfer successful' });
+
+        } else {
+            return res.status(200).json({ message: "wrong pin" })
+        }
     } catch (error) {
         return res.status(500).json({ error: 'Internal server error' });
     }
 })
 
 
-router.post('/takecredit/:id', async (req, res) => {
+router.post('/takecredit', authCheck, async (req, res) => {
     try {
 
         const { amount, pin, TelNum, creditType } = req.body
@@ -186,7 +223,7 @@ router.post('/takecredit/:id', async (req, res) => {
 
         const user = await prisma.user.findUnique({
             where: {
-                id: Number(req.params.id)
+                id: req.user.id
             }
         })
 
@@ -228,8 +265,6 @@ router.post('/takecredit/:id', async (req, res) => {
                 })
                 return res.status(200).json({ message: 'You are successfuly take credit!' });
             }
-
-            
         }
 
 
