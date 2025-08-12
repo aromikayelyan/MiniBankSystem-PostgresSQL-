@@ -86,7 +86,7 @@ router.post('/withdraw/:id', async (req, res) => {
         if (user && user.pin === pin) {
             response = await withdraw(amount, user.telNum)
         } else {
-            return res.status(200).json({ message: "wrong pin" })
+            return res.status(401).json({ message: "wrong pin" })
         }
 
         return res.status(200).json(response)
@@ -128,42 +128,42 @@ router.post('/checkhistory/:id', async (req, res) => {
 
 router.post('/transfer/:id', async (req, res) => {
     try {
-        const { amount, pin, toTelNum } = req.body
+        // const { amount, pin, toTelNum } = req.body
 
-        if (typeof amount !== 'number' || amount <= 0) {
-            return res.status(400).json({ message: 'Invalid amount' });
-        }
+        // if (typeof amount !== 'number' || amount <= 0) {
+        //     return res.status(400).json({ message: 'Invalid amount' });
+        // }
 
-        if (typeof toTelNum !== 'string' || toTelNum.length <= 9) {
-            return res.status(400).json({ message: 'Invalid telephone number' });
-        }
+        // if (typeof toTelNum !== 'string' || toTelNum.length <= 9) {
+        //     return res.status(400).json({ message: 'Invalid telephone number' });
+        // }
 
-        const fromUser = await prisma.user.findUnique({
-            where: {
-                id: Number(req.params.id)
-            }
-        })
+        // const fromUser = await prisma.user.findUnique({
+        //     where: {
+        //         id: Number(req.params.id)
+        //     }
+        // })
 
-        const toUser = await prisma.user.findUnique({
-            where: {
-                telNum: toTelNum
-            }
-        })
-
-
-
-        if (fromUser && fromUser.pin === pin) {
-            if (!toUser) {
-                return res.status(200).json({ message: `wit number - ${toTelNum} User not found` })
-            }
-
-        } else {
-            return res.status(200).json({ message: "wrong pin" })
-        }
+        // const toUser = await prisma.user.findUnique({
+        //     where: {
+        //         telNum: toTelNum
+        //     }
+        // })
 
 
 
-        return res.status(200).json({ message: `` })
+        // if (fromUser && fromUser.pin === pin) {
+        //     if (!toUser) {
+        //         return res.status(200).json({ message: `wit number - ${toTelNum} User not found` })
+        //     }
+
+        // } else {
+        //     return res.status(200).json({ message: "wrong pin" })
+        // }
+
+
+
+        // return res.status(200).json({ message: `` })
     } catch (error) {
         return res.status(500).json({ error: 'Internal server error' });
     }
@@ -173,7 +173,7 @@ router.post('/transfer/:id', async (req, res) => {
 router.post('/takecredit/:id', async (req, res) => {
     try {
 
-        const { amount, pin, TelNum, } = req.body
+        const { amount, pin, TelNum, creditType } = req.body
 
         if (typeof amount !== 'number' || amount <= 0) {
             return res.status(400).json({ message: 'Invalid amount' });
@@ -199,33 +199,43 @@ router.post('/takecredit/:id', async (req, res) => {
 
             const creditSum = checkTakeCredit(userHistory)
 
-            if(amount > creditSum){
-                return res.status(200).json({ message: `The credit amount you are eligible for is $${creditSum}.`})
+            if (amount > creditSum) {
+                return res.status(400).json({ message: `The maximum credit you can take is $${creditSum}.` });
             }
 
-            if (creditSum > 0 && creditSum >= amount && user.pin === pin) {
+            if (creditSum > 0 && creditSum >= amount && user.pin === pin && creditType) {
+
+                if (typeof creditType !== 'string') {
+                    return res.status(400).json({ message: 'Credit type must be a string' });
+                }
+
+                const rate = interestRates[creditType as keyof typeof interestRates];
+
+                if (rate === undefined) {
+                    return res.status(400).json({ message: 'Invalid credit type' });
+                }
+
                 const newBankaccount = await prisma.bankAccount.create({
                     data: {
                         account: String(Date.now()),
-                        balance: amount ,
-                        type: 'credit',
-                        duty: amount + (amount * interestRates.consumer/100),
-                        interestRate: interestRates.consumer,
+                        balance: amount,
+                        type: 'credit' + `(${creditType})`,
+                        duty: amount + (amount * rate / 100),
+                        interestRate: rate,
                         loanTerm: 36,
                         userId: user.id,
                     }
                 })
+                return res.status(200).json({ message: 'You are successfuly take credit!' });
             }
 
-            return res.status(200).json({ error: 'You are successfuly take credit!' });
-        
+            
         }
 
 
 
 
         return res.status(400).json({ error: 'Try again!' });
-
     } catch (error) {
         return res.status(500).json({ error: 'Internal server error' });
     }
